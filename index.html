@@ -1,0 +1,116 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="BP Log">
+<meta name="theme-color" content="#b91c1c"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon.png">
+<title>BP Log</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,system-ui,sans-serif;background:#f5f5f4;color:#1c1917;font-size:18px}
+header{background:#b91c1c;color:#fff;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px}h1{margin:0;font-size:22px}
+.wrap{padding:12px 14px 40px;max-width:560px;margin:auto}.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px #0002}
+.row{display:flex;gap:10px}.row>div{flex:1}label{display:block;font-size:14px;color:#57534e;margin-bottom:4px}
+input,textarea{width:100%;font-size:22px;padding:10px;border:1px solid #d6d3d1;border-radius:10px;background:#fff}textarea{font-size:17px}
+button{font-size:19px;padding:12px 14px;border:0;border-radius:10px;background:#b91c1c;color:#fff;width:100%;font-weight:600}
+button.sec{background:#e7e5e4;color:#1c1917}.avg{display:flex;justify-content:space-around;text-align:center}.avg b{font-size:28px;display:block}
+.avg span{font-size:13px;color:#57534e}table{width:100%;border-collapse:collapse;font-size:16px}th,td{padding:8px 4px;border-bottom:1px solid #e7e5e4;text-align:left}
+td.hi{color:#b91c1c;font-weight:700}span.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:1px}span.dot.on{background:#dc2626}tr.hirow td{color:#b91c1c!important;font-weight:700}tr.hirow .x{color:#b91c1c}.x{background:none;color:#a8a29e;width:auto;padding:2px 6px;font-size:18px}.msg{font-size:14px;color:#57534e;margin-top:8px}
+</style></head><body>
+<header><h1>Dan's Blood Pressure</h1></header>
+<div class="wrap">
+<div class="card"><div class="avg"><div><b id="aS">–</b><span>Avg Systolic</span></div><div><b id="aD">–</b><span>Avg Diastolic</span></div><div><b id="aP">–</b><span>Avg Pulse</span></div></div><div class="msg" id="cnt" style="text-align:center;font-size:17px;color:#1c1917;margin-top:12px"></div></div>
+<div class="card">
+<div class="row"><div><label>Date</label><input type="date" id="d"></div><div><label>Time</label><input type="time" id="t"></div></div>
+<div class="row" style="margin-top:10px"><div><label>Systolic</label><input type="number" inputmode="numeric" id="s" placeholder="120"></div><div><label>Diastolic</label><input type="number" inputmode="numeric" id="di" placeholder="70"></div><div><label>Pulse</label><input type="number" inputmode="numeric" id="p" placeholder="65"></div></div>
+<div style="margin-top:10px"><label>Notes</label><textarea id="n" rows="2"></textarea></div>
+<div style="margin-top:12px"><button id="save">Save Reading</button></div><div class="msg" id="m"></div></div>
+<div class="card"><table><thead><tr><th>Date</th><th>Time</th><th>BP</th><th>Pulse</th><th></th></tr></thead><tbody id="tb"></tbody></table>
+<div class="msg">Red dot, red and bold = top number over 140 or bottom number over 90.</div></div>
+<div class="card"><button class="sec" id="snd">Send readings to my other device</button><div class="msg">Sends a link with all readings. On your other device, copy that link, open this app, and tap "Import from other device." Nothing is removed; no duplicates.</div><div style="height:10px"></div><button class="sec" id="imp">Import from other device</button><div id="impbox" style="display:none;margin-top:8px"><input type="text" id="impurl" placeholder="Paste link here" style="font-size:16px"><div style="height:8px"></div><button id="impgo">Add Readings</button></div><div class="msg" id="impm"></div><div style="height:10px"></div><button class="sec" id="pdf">Export PDF (looks like the app)</button><div style="height:10px"></div><button class="sec" id="exp">Export spreadsheet (CSV)</button></div>
+<div class="card"><button id="delall" style="background:#fff;color:#b91c1c;border:2px solid #b91c1c">Delete All Data</button></div>
+</div>
+<script>
+const K='bp_log_v1';let L=JSON.parse(localStorage.getItem(K)||'[]');
+function sv(){localStorage.setItem(K,JSON.stringify(L))}
+function key(r){return r.d+' '+r.t}
+function hk(s){let x=0;for(const c of s)x=(x*31+c.charCodeAt(0))|0;return x}
+// one-time import from link (#data=...), never sent to any server
+function mergeData(s){const j=s.indexOf('#data=');if(j<0)return -1;s=s.slice(j+6).trim().split(/\s/)[0];const have=new Set(L.map(key));let n=0;s.split(';').forEach(x=>{const a=x.split(',').map(v=>{try{return decodeURIComponent(v)}catch(e){return v}});if(a.length<5||!/^\d{8}$/.test(a[0]))return;const r={d:a[0].slice(0,4)+'-'+a[0].slice(4,6)+'-'+a[0].slice(6,8),t:a[1].slice(0,2)+':'+a[1].slice(2,4),s:+a[2],di:+a[3],p:+a[4],n:a[5]||''};if(!have.has(key(r))){L.push(r);have.add(key(r));n++}});sv();return n}
+(function(){const h=location.hash;if(h.startsWith('#data=')&&!localStorage.getItem('bp_imp_'+hk(h))){mergeData(h);localStorage.setItem('bp_imp_'+hk(h),'1')}})();
+const $=id=>document.getElementById(id);
+function now(){const n=new Date();$('d').value=n.toLocaleDateString('en-CA');$('t').value=n.toTimeString().slice(0,5)}
+function fmtD(d){const[y,m,dd]=d.split('-');return +m+'/'+ +dd+'/'+y.slice(2)}
+function fmtT(t){let[h,m]=t.split(':').map(Number);const ap=h>=12?'p':'a';h=h%12||12;return h+':'+String(m).padStart(2,'0')+ap}
+function render(){L.sort((a,b)=>key(b).localeCompare(key(a)));const tb=$('tb');tb.innerHTML='';
+L.forEach((r,i)=>{const hi=r.s>140||r.di>90;const tr=document.createElement('tr');if(hi)tr.className='hirow';tr.innerHTML=`<td><span class="dot${hi?' on':''}"></span>${fmtD(r.d)}</td><td>${fmtT(r.t)}</td><td>${r.s}/${r.di}</td><td>${r.p||''}</td><td><button class="x" data-i="${i}">✕</button></td>`;if(r.n)tr.title=r.n;tb.appendChild(tr);
+if(r.n){const t2=document.createElement('tr');if(hi)t2.className='hirow';t2.innerHTML=`<td colspan="5" style="font-size:14px;color:#57534e;border-bottom:1px solid #e7e5e4">${r.n.replace(/</g,'&lt;')}</td>`;tr.style.borderBottom='0';tb.appendChild(t2)}});
+const avg=f=>{const v=L.map(f).filter(x=>x>0);return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(0):'–'};
+$('aS').textContent=avg(r=>r.s);$('aD').textContent=avg(r=>r.di);$('aP').textContent=avg(r=>r.p);const ds=L.map(r=>r.d).sort();$('cnt').innerHTML=L.length?('<b style="font-size:20px;display:inline">'+L.length+'</b> readings &nbsp;·&nbsp; '+fmtD(ds[0])+' to '+fmtD(ds[ds.length-1])):'No readings yet';
+tb.querySelectorAll('.x').forEach(b=>b.onclick=()=>{const r=L[b.dataset.i];if(confirm('Delete '+fmtD(r.d)+' '+fmtT(r.t)+' '+r.s+'/'+r.di+'?')){L.splice(b.dataset.i,1);sv();render()}})}
+$('save').onclick=()=>{const r={d:$('d').value,t:$('t').value,s:+$('s').value,di:+$('di').value,p:+$('p').value||0,n:$('n').value.trim()};
+if(!r.d||!r.t||!(r.s>50&&r.s<260)||!(r.di>30&&r.di<160)){$('m').textContent='Please enter date, time, systolic and diastolic.';return}
+L.push(r);sv();render();['s','di','p','n'].forEach(x=>$(x).value='');now();$('m').textContent='Saved '+r.s+'/'+r.di+'.';setTimeout(()=>$('m').textContent='',3000)};
+$('snd').onclick=async()=>{const enc=v=>encodeURIComponent(v).replace(/[;,]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());
+const s=L.slice().sort((a,b)=>key(a).localeCompare(key(b))).map(r=>[r.d.replace(/-/g,''),r.t.replace(':',''),r.s,r.di,r.p||0].concat(r.n?[enc(r.n)]:[]).join(',')).join(';');
+const u=location.origin+location.pathname+'#data='+s+';sent'+Date.now();
+if(navigator.share){try{await navigator.share({title:'BP readings',url:u});return}catch(e){if(e.name==='AbortError')return}}
+try{await navigator.clipboard.writeText(u);$('m').textContent='Link copied. Paste it into a message to yourself.'}catch(e){prompt('Copy this link:',u)}};
+function doImport(raw){
+const n=mergeData(raw||'');
+if(n<0){$('impm').style.color='#b91c1c';$('impm').textContent='No readings found in that text. Copy the full link from your other device and try again.';return false}
+render();
+$('impurl').value='';$('impbox').style.display='none';
+$('impm').style.color='#15803d';
+$('impm').textContent=n>0?('Added '+n+' new reading'+(n===1?'':'s')+'.'):'Already up to date (0 new readings).';
+return true;
+}
+$('imp').onclick=async()=>{
+$('impm').style.color='#57534e';
+if(navigator.clipboard&&navigator.clipboard.readText){
+try{const txt=await navigator.clipboard.readText();if(txt&&txt.indexOf('#data=')>=0){doImport(txt);return}}catch(e){}
+}
+$('impbox').style.display='block';
+$('impurl').value='';
+$('impurl').focus();
+$('impm').textContent='Paste the link from your other device above, then tap Add Readings.';
+};
+$('impgo').onclick=()=>{doImport($('impurl').value.trim())};
+
+function makePDF(){const W=612,H=792,M=40;const pages=[];let cur=[],y=0;
+const esc=s=>String(s).replace(/[^\x20-\x7e]/g,'').replace(/[\\()]/g,c=>'\\'+c);
+const txt=(x,yy,s,sz,bold,red)=>cur.push((red?'0.73 0.11 0.11 rg ':'0.11 0.1 0.09 rg ')+'BT /'+(bold?'F2':'F1')+' '+sz+' Tf '+x+' '+yy+' Td ('+esc(s)+') Tj ET');
+const dot=(x,yy)=>{const r=3.5,k=r*0.5523;cur.push('0.86 0.15 0.15 rg '+(x+r)+' '+yy+' m '+(x+r)+' '+(yy+k)+' '+(x+k)+' '+(yy+r)+' '+x+' '+(yy+r)+' c '+(x-k)+' '+(yy+r)+' '+(x-r)+' '+(yy+k)+' '+(x-r)+' '+yy+' c '+(x-r)+' '+(yy-k)+' '+(x-k)+' '+(yy-r)+' '+x+' '+(yy-r)+' c '+(x+k)+' '+(yy-r)+' '+(x+r)+' '+(yy-k)+' '+(x+r)+' '+yy+' c f')};
+const line=yy=>cur.push('0.85 0.84 0.83 RG 0.5 w '+M+' '+yy+' m '+(W-M)+' '+yy+' l S');
+const cols=[M+14,M+90,M+165,M+250,M+315];
+const head=()=>{txt(cols[0],y,'Date',11,true);txt(cols[1],y,'Time',11,true);txt(cols[2],y,'BP',11,true);txt(cols[3],y,'Pulse',11,true);txt(cols[4],y,'Note',11,true);line(y-6);y-=22};
+const newPage=()=>{if(cur.length)pages.push(cur);cur=[];y=H-M-10};
+newPage();const ds=L.map(r=>r.d).sort();const av=f=>{const v=L.map(f).filter(x=>x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):''};
+txt(M,y,"Dan's Blood Pressure",20,true,true);y-=24;
+txt(M,y,L.length+' readings  -  '+(L.length?fmtD(ds[0])+' to '+fmtD(ds[ds.length-1]):''),12,false);y-=17;
+txt(M,y,'Average '+av(r=>r.s)+'/'+av(r=>r.di)+'   Pulse '+av(r=>r.p),12,false);y-=26;head();
+L.slice().sort((a,b)=>key(b).localeCompare(key(a))).forEach(r=>{if(y<M+30){newPage();head()}const hi=r.s>140||r.di>90;
+if(hi)dot(M+4,y+3.5);txt(cols[0],y,fmtD(r.d),11,hi,hi);txt(cols[1],y,fmtT(r.t),11,hi,hi);txt(cols[2],y,r.s+'/'+r.di,11,hi,hi);txt(cols[3],y,r.p||'',11,hi,hi);
+let n=(r.n||'').replace(/[^\x20-\x7e]/g,'');const parts=[];while(n.length>40){let i=n.lastIndexOf(' ',40);if(i<10)i=40;parts.push(n.slice(0,i));n=n.slice(i).trim()}if(n)parts.push(n);
+if(parts.length){txt(cols[4],y,parts[0],11,hi,hi);for(const p of parts.slice(1)){y-=14;txt(cols[4],y,p,11,hi,hi)}}
+line(y-6);y-=20});
+if(y<M+30)newPage();y-=6;dot(M+4,y+3.5);txt(M+14,y,'Red dot, red and bold = top number over 140 or bottom number over 90',10,false);
+pages.push(cur);
+const objs=[];const add=s=>{objs.push(s);return objs.length};
+add('<< /Type /Catalog /Pages 2 0 R >>');add('PAGES');add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+const kids=[];pages.forEach(pg=>{const c=pg.join('\n');const cid=add('<< /Length '+c.length+' >>\nstream\n'+c+'\nendstream');kids.push(add('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents '+cid+' 0 R >>'))});
+objs[1]='<< /Type /Pages /Kids ['+kids.map(k=>k+' 0 R').join(' ')+'] /Count '+kids.length+' >>';
+let out='%PDF-1.4\n';const offs=[];objs.forEach((o,i)=>{offs.push(out.length);out+=(i+1)+' 0 obj\n'+o+'\nendobj\n'});
+const xr=out.length;out+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n'+offs.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+(objs.length+1)+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF';
+return out}
+$('pdf').onclick=async()=>{const f=new File([makePDF()],'BP log.pdf',{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'BP log'});return}catch(e){if(e.name==='AbortError')return}}
+const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download='BP log.pdf';a.click()};
+$('delall').onclick=()=>{if(!L.length){$('m').textContent='No readings to delete.';return}if(confirm('Are you sure? This deletes all '+L.length+' readings on this device. It cannot be undone.')){L=[];sv();render();window.scrollTo(0,0)}};
+$('exp').onclick=async()=>{const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+const ds=L.map(r=>r.d).sort();const av=f=>{const v=L.map(f).filter(x=>x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):''};
+const rows=[[q("Dan's Blood Pressure")],[q(L.length+' readings, '+(L.length?fmtD(ds[0])+' to '+fmtD(ds[ds.length-1]):''))],[q('Average '+av(r=>r.s)+' / '+av(r=>r.di)+', pulse '+av(r=>r.p))],[],
+['High','Date','Time','BP','Pulse','Note'].map(q)];
+L.slice().sort((a,b)=>key(b).localeCompare(key(a))).forEach(r=>{const hi=r.s>140||r.di>90;rows.push([hi?'●':'',fmtD(r.d),fmtT(r.t),r.s+' / '+r.di,r.p||'',r.n||''].map(q))});
+rows.push([]);rows.push([q('● = top number over 140 or bottom number over 90')]);
+const csv='\ufeff'+rows.map(r=>r.join(',')).join('\n');
+const f=new File([csv],'BP log.csv',{type:'text/csv'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'BP log'});return}catch(e){}}
+const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download='BP log.csv';a.click()};
+now();render();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
